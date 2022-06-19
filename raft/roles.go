@@ -1,9 +1,9 @@
 package raft
 
-type Role int
+type Role string
 
 const (
-	roleFollower Role = iota
-	roleLeader
-	roleCandidate
+	roleFollower  Role = "FOLLOWER"
+	roleLeader    Role = "LEADER"
+	roleCandidate Role = "CANDIDATE"
 )

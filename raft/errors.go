@@ -7,3 +7,9 @@ func checkErr(err error) {
 		log.Println(err)
 	}
 }
+
+func printErr(err error) {
+	if err != nil {
+		log.Println(err)
+	}
+}

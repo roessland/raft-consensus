@@ -1,6 +1,8 @@
 package stable
 
-import "github.com/roessland/raft-consensus/raft"
+import (
+	"github.com/roessland/raft-consensus/raft/raftlog"
+)
 
 // Stable variables stored on disk are not lost if the process crashes.
 // https://youtu.be/uXEYuDwm7e4?t=213
@@ -32,7 +34,8 @@ type NullableIntStore interface {
 type LogEntriesStore interface {
 	SetEmpty() // SetEmpty stores an empty list.
 	Len() int
-	At(int) raft.LogEntry
-	Append(entry raft.LogEntry)
+	At(int) raftlog.Entry
+	Append(entry raftlog.Entry)
 	AlreadyExists() bool
+	Truncate(newLen int)
 }

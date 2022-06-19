@@ -44,7 +44,7 @@ func (s *Server) handleSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.raftNode.Command(r.Context(), []byte(fmt.Sprintf(`SET %s %s`, key, val)))
+	err := s.raftNode.Broadcast(r.Context(), []byte(fmt.Sprintf(`SET %s %s`, key, val)))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

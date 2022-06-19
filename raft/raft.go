@@ -1,30 +1,35 @@
 package raft
 
 import (
-	"context"
 	"github.com/roessland/raft-consensus/raft/sets"
 	"github.com/roessland/raft-consensus/raft/stable"
-	"math/rand"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
 
 const NumNodes = 3
 
-type LogEntry struct {
-	// The term the entry was stored in
-	term int
+type StableStorage struct {
+	CurrentTerm  stable.IntStore
+	VotedFor     stable.NullableIntStore
+	Log          stable.LogEntriesStore
+	CommitLength stable.IntStore
+}
 
-	// The log data sent by the client
-	command []byte
-
-	// The index the entry is stored at
-	index int
+func InMemoryStorage() StableStorage {
+	return StableStorage{
+		CurrentTerm:  stable.NewInMemoryIntStore(),
+		VotedFor:     stable.NewInMemoryNullableIntStore(),
+		Log:          stable.NewInMemoryLogEntriesStore(),
+		CommitLength: stable.NewInMemoryIntStore(),
+	}
 }
 
 type Node struct {
-	nodeId   int // identity of the current node.
-	numNodes int // total number of raft nodes.
+	nodeId   int   // identity of the current node.
+	numNodes int   // total number of raft nodes
+	nodes    []int // identity of all nodes, including self.
 
 	currentTerm   stable.IntStore
 	votedFor      stable.NullableIntStore
@@ -37,32 +42,41 @@ type Node struct {
 	ackedLength   [NumNodes]int
 
 	// Selectable conditions
-	incomingVoteRequests      chan VoteRequestParams
-	electionTimeoutEvents     chan struct{} // For candidates
-	leaderTimeoutEvents       chan struct{} // For followers
-	shouldSendHeartbeatEvents chan struct{} // For leader
+	logResponses      chan LogResponse
+	logRequests       chan LogRequest
+	voteResponses     chan VoteResponse
+	voteRequests      chan VoteRequest
+	broadcastRequests chan BroadcastRequest
 
-	// sendHeartbeatTimer TODO
-	// suspectsLeaderFailureTimer TODO
-	// replicateLogTimer TODO https://youtu.be/uXEYuDwm7e4?t=952
+	// On timeout: Candidate runs for election.
+	electionTimer   *time.Timer
+	electionTimeout time.Duration
 
-	// Timers
-	electionTimer              *time.Timer   // For candidates
-	heartbeatTimer             *time.Timer   // For followers
-	shouldSendHeartbeatTimer   *time.Timer   // For leader
-	electionTimeout            time.Duration // For candidates
-	heartbeatTimeout           time.Duration // For followers
-	shouldSendHeartbeatTimeout time.Duration // For leader
+	// On timeout: Follower runs for election.
+	heartbeatTimer   *time.Timer
+	heartbeatTimeout time.Duration
+
+	// On timeout: Leader broadcasts heartbeat.
+	replicateLogTicker   *time.Ticker
+	replicateLogInterval time.Duration
 
 	// Non-raft stuff
 	httpClient *http.Client
 	done       chan struct{}
+	logger     logrus.FieldLogger
 }
 
-func NewNode(nodeId int) *Node {
+func NewNode(nodeId int, storage StableStorage) *Node {
 	n := &Node{}
 	n.numNodes = 3
 	n.nodeId = nodeId
+	n.nodes = []int{0, 1, 2}
+	n.logger = logrus.New().WithField("nodeId", nodeId)
+
+	n.currentTerm = storage.CurrentTerm
+	n.votedFor = storage.VotedFor
+	n.log = storage.Log
+	n.commitLength = storage.CommitLength
 
 	if !n.needsInitialisation() {
 		n.initStableVariables()
@@ -99,26 +113,42 @@ func (n *Node) initTransientVariables() {
 	n.votesReceived = sets.NewIntSet()
 	n.sentLength = [3]int{0, 0, 0}
 	n.ackedLength = [3]int{0, 0, 0}
+
+	n.logResponses = make(chan LogResponse)
+	n.logRequests = make(chan LogRequest)
+	n.voteResponses = make(chan VoteResponse)
+	n.voteRequests = make(chan VoteRequest)
+	n.broadcastRequests = make(chan BroadcastRequest, 10)
+
 }
 
 func (n *Node) initTimers() {
-	n.electionTimer = time.NewTimer(randomInterval())
-	n.heartbeatTimer = time.NewTimer(randomInterval())
-	n.shouldSendHeartbeatTimer = time.NewTimer(randomInterval())
+	// Initially disabled
+	n.electionTimeout = randomInterval()
+	n.electionTimer = &time.Timer{}
+
+	// Initially enabled, and will trigger follower to become candidate.
+	n.heartbeatTimeout = randomInterval()
+	n.heartbeatTimer = time.NewTimer(n.heartbeatTimeout)
+
+	// Initially disabled
+	n.replicateLogInterval = randomInterval()
+	n.replicateLogTicker = time.NewTicker(n.replicateLogInterval)
 }
 
 func (n *Node) Start() {
 	go n.serveRPC()
+	go n.mainLoop()
+}
+
+func (n *Node) Broadcast(msg []byte) {
+	msgReq := BroadcastRequest{
+		Msg: msg,
+	}
+	n.broadcastRequests <- msgReq
 }
 
 func (n *Node) Close() {
 	close(n.done)
-}
-
-func (n *Node) Command(ctx context.Context, cmd []byte) error {
-	return nil
-}
-
-func randomInterval() time.Duration {
-	return time.Duration(150+rand.Intn(150)) * time.Millisecond
+	time.Sleep(50 * time.Millisecond) // todo wait for stuff to close
 }

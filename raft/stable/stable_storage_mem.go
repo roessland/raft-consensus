@@ -1,6 +1,8 @@
 package stable
 
-import "github.com/roessland/raft-consensus/raft"
+import (
+	"github.com/roessland/raft-consensus/raft/raftlog"
+)
 
 // In-memory implementations of stable storage,
 // used for testing.
@@ -60,12 +62,13 @@ func (s *InMemoryNullableIntStore) IsNull() bool {
 }
 
 func (s *InMemoryNullableIntStore) SetNull() {
+	s.exists = true
 	s.val = -1
 }
 
 // InMemoryLogEntriesStore is a fake LogEntriesStore used for testing.
 type InMemoryLogEntriesStore struct {
-	Entries []raft.LogEntry
+	Entries []raftlog.Entry
 	Exists  bool
 }
 
@@ -81,15 +84,19 @@ func (s *InMemoryLogEntriesStore) Len() int {
 	return len(s.Entries)
 }
 
-func (s *InMemoryLogEntriesStore) At(idx int) raft.LogEntry {
+func (s *InMemoryLogEntriesStore) At(idx int) raftlog.Entry {
 	return s.Entries[idx]
 }
 
-func (s *InMemoryLogEntriesStore) Append(entry raft.LogEntry) {
+func (s *InMemoryLogEntriesStore) Append(entry raftlog.Entry) {
 	s.Exists = true
 	s.Entries = append(s.Entries, entry)
 }
 
 func (s *InMemoryLogEntriesStore) AlreadyExists() bool {
 	return s.Exists
+}
+
+func (s *InMemoryLogEntriesStore) Truncate(newLen int) {
+	s.Entries = s.Entries[:newLen]
 }
