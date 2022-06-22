@@ -1,9 +1,11 @@
 package raft
 
 import (
+	"github.com/mattn/go-colorable"
 	"github.com/roessland/raft-consensus/raft/sets"
 	"github.com/roessland/raft-consensus/raft/stable"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"net/http"
 	"time"
 )
@@ -63,7 +65,7 @@ type Node struct {
 	// Non-raft stuff
 	httpClient *http.Client
 	done       chan struct{}
-	logger     logrus.FieldLogger
+	logger     *zap.SugaredLogger
 }
 
 func NewNode(nodeId int, storage StableStorage) *Node {
@@ -71,7 +73,15 @@ func NewNode(nodeId int, storage StableStorage) *Node {
 	n.numNodes = 3
 	n.nodeId = nodeId
 	n.nodes = []int{0, 1, 2}
-	n.logger = logrus.New().WithField("nodeId", nodeId)
+
+	aa := zap.NewDevelopmentEncoderConfig()
+	aa.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	bb := zap.New(zapcore.NewCore(
+		zapcore.NewConsoleEncoder(aa),
+		zapcore.AddSync(colorable.NewColorableStdout()),
+		zapcore.DebugLevel,
+	))
+	n.logger = bb.Sugar().With(zap.Int("nodeID", nodeId))
 
 	n.currentTerm = storage.CurrentTerm
 	n.votedFor = storage.VotedFor

@@ -2,7 +2,6 @@ package raft
 
 import (
 	"github.com/roessland/raft-consensus/raft/raftlog"
-	"log"
 )
 
 // https://youtu.be/uXEYuDwm7e4?t=1059
@@ -29,6 +28,6 @@ func (n *Node) onReceivingBroadcastRequest(msgReq BroadcastRequest) {
 		}
 	} else {
 		// forward the request to currentLeader via a FIFO link.
-		log.Printf("i'm not the leader. Ask %d instead", n.currentLeader)
+		n.logger.Info("i'm not the leader. Ask %d instead", n.currentLeader)
 	}
 }

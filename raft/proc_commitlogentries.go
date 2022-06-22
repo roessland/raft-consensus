@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -19,7 +18,7 @@ func (n *Node) commitLogEntries() {
 		}
 		if acks >= int(math.Ceil(float64(n.numNodes+1)/2)) {
 			// TODO "deliver log[commitLength].msg to the application"
-			fmt.Println("deliver to application", n.log.At(n.commitLength.Get()))
+			n.logger.Info("deliver to application", n.log.At(n.commitLength.Get()))
 			n.commitLength.Set(n.commitLength.Get() + 1)
 		} else {
 			break

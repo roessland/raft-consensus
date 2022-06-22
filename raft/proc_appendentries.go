@@ -36,7 +36,7 @@ func (n *Node) appendEntries(prefixLen int, leaderCommit int, suffix []raftlog.E
 	}
 	if leaderCommit > n.commitLength.Get() {
 		for i := n.commitLength.Get(); i < leaderCommit; i++ {
-			// "deliver log[i] msg to the application"
+			n.logger.Info("deliver log[i] msg to the application")
 		}
 		n.commitLength.Set(leaderCommit)
 	}

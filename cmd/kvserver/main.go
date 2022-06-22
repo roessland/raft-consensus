@@ -5,28 +5,42 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/roessland/raft-consensus/raft"
-	"log"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"net/http"
+	"os"
 )
 
 var nodeId int
 var raftNode *raft.Node
+var log *zap.SugaredLogger
 
 func init() {
 	flag.IntVar(&nodeId, "nodeid", 0, "must be unique per process")
 }
 
 func main() {
+	var err error
 	flag.Parse()
 
-	raftNode = raft.NewNode(nodeId)
+	aa := zap.NewDevelopmentEncoderConfig()
+	aa.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	nonSugarLogger, err := zap.NewDevelopment()
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "error creating logger: %s", err)
+		os.Exit(1)
+	}
+	log = nonSugarLogger.Sugar()
+
+	raftNode = raft.NewNode(nodeId, raft.InMemoryStorage())
 
 	r := mux.NewRouter()
 	r.HandleFunc("/set/{key}/{val}", handleSet)
 	r.HandleFunc("/get/{key}", handleGet)
 
 	addr := fmt.Sprintf("127.0.0.1:%d", 8000+nodeId)
-	log.Printf("API: Listening at %s", addr)
+	log.Infof("API: Listening at %s", addr)
 	log.Fatal(http.ListenAndServe(addr, r))
 }
 

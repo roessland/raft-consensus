@@ -52,21 +52,21 @@ func (n *Node) httpMsgHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("got RPC message of unknown type: %s", someMsg.Type)
 	}
 
-	log.Print("got RPC:", string(body))
+	n.logger.Infof("%d got RPC: %s", n.nodeId, string(body))
 }
 
 func (n *Node) serveRPC() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", n.httpMsgHandler)
 	addr := fmt.Sprintf("127.0.0.1:%d", 50000+n.nodeId)
-	log.Printf("Raft: listening on HTTP at %s", addr)
+	n.logger.Infof("Raft: listening on HTTP at %s", addr)
 	server := &http.Server{Addr: addr, Handler: r}
 	go func() {
 		<-n.done
-		log.Printf("closing rpc server")
+		n.logger.Infof("closing rpc server")
 		checkErr(server.Close())
 	}()
-	log.Printf("rpc server: %s", server.ListenAndServe())
+	n.logger.Infof("rpc server: %s", server.ListenAndServe())
 }
 
 // sendRPC sends a message.
@@ -86,7 +86,7 @@ func (n *Node) sendRPC(dstNodeId int, msg any) {
 		}
 
 		if resp.StatusCode != 200 {
-			log.Println("non-200-status")
+			n.logger.Infof("non-200-status")
 		}
 	}()
 }

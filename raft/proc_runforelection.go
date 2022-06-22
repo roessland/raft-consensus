@@ -2,12 +2,11 @@ package raft
 
 import (
 	"github.com/roessland/raft-consensus/raft/sets"
-	"log"
 	"time"
 )
 
 func (n *Node) runForElection() {
-	log.Print("running for election")
+	n.logger.Info("running for election")
 	n.currentTerm.Set(n.currentTerm.Get() + 1)
 	n.currentRole = roleCandidate
 	n.votedFor.Set(n.nodeId)

@@ -18,7 +18,7 @@ type Server struct {
 func NewServer(nodeId int) *Server {
 	s := &Server{}
 	s.nodeId = nodeId
-	s.raftNode = raft.NewNode(nodeId)
+	s.raftNode = raft.NewNode(nodeId, raft.InMemoryStorage())
 
 	r := mux.NewRouter()
 	r.HandleFunc("/set/{key}/{val}", s.handleSet)

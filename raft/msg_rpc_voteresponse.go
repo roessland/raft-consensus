@@ -15,7 +15,7 @@ type VoteResponse struct {
 }
 
 func (n *Node) onReceivingVoteResponse(msg VoteResponse) {
-	n.logger.Printf("%#+v", msg)
+	n.logger.Infof("%#+v", msg)
 	voterId := msg.VoterID
 	term := msg.Term
 	granted := msg.Granted

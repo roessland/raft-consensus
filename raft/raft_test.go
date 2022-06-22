@@ -47,8 +47,9 @@ func TestRaft3_InitialElection(t *testing.T) {
 		for i, _ := range nodes {
 			if nodes[i].currentRole == roleLeader {
 				nodes[i].Close()
-				time.Sleep(200 * time.Millisecond)
+				time.Sleep(300 * time.Millisecond)
 				nodes[i] = NewNode(i, storage[i])
+				nodes[i].Start()
 				break
 			}
 		}
